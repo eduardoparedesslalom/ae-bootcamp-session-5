@@ -14,6 +14,9 @@ test.describe('TODO Application - Critical User Journeys', () => {
     
     // Wait for initial load to complete
     await page.waitForLoadState('networkidle');
+    
+    // Clear all existing todos to ensure test isolation
+    await todoPage.clearAllTodos();
   });
 
   test.describe('Create TODO', () => {

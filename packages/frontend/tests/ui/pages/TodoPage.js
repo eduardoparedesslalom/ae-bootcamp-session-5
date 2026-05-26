@@ -139,8 +139,18 @@ class TodoPage {
    * @returns {Promise<number>} Number of todos
    */
   async getTodoCount() {
-    const items = await this.todoList.getByRole('listitem').count();
-    return items;
+    try {
+      // Check if the list exists (it won't when there are no todos)
+      const listExists = await this.todoList.count();
+      if (listExists === 0) {
+        return 0;
+      }
+      const items = await this.todoList.getByRole('listitem').count();
+      return items;
+    } catch (error) {
+      // If list doesn't exist, there are no todos
+      return 0;
+    }
   }
 
   /**
@@ -213,6 +223,59 @@ class TodoPage {
     // Note: App doesn't have empty state message (intentional issue)
     // This method checks if the list is empty
     return (await this.getTodoCount()) === 0;
+  }
+
+  /**
+   * Clear all todos by deleting them one by one
+   * Useful for test cleanup between runs
+   */
+  async clearAllTodos() {
+    try {
+      let count = await this.getTodoCount();
+      
+      // If no todos exist, nothing to clear
+      if (count === 0) {
+        return;
+      }
+      
+      let previousCount = count;
+      let attempts = 0;
+      const maxAttempts = 50; // Prevent infinite loops
+      
+      while (count > 0 && attempts < maxAttempts) {
+        // Get the first todo item and delete it
+        const items = await this.page.getByRole('listitem');
+        const firstItem = items.first();
+        
+        // Check if item exists before trying to delete
+        const itemCount = await firstItem.count();
+        if (itemCount === 0) {
+          break; // No more items to delete
+        }
+        
+        const deleteButton = firstItem.getByRole('button', { name: /delete/i });
+        await deleteButton.click();
+        
+        // Wait for the count to decrease
+        await this.page.waitForFunction(
+          (prevCount) => {
+            const items = document.querySelectorAll('[role="listitem"]');
+            return items.length < prevCount;
+          },
+          previousCount,
+          { timeout: 2000 }
+        ).catch(() => {
+          // If timeout, item might already be deleted, continue
+        });
+        
+        previousCount = count;
+        count = await this.getTodoCount();
+        attempts++;
+      }
+    } catch (error) {
+      // If cleanup fails, log but don't fail the test
+      console.log('Warning: clearAllTodos encountered an issue:', error.message);
+    }
   }
 }
 

@@ -18,6 +18,8 @@ test.describe('TODO Application - Critical User Journeys', () => {
   test.beforeEach(async ({ page }) => {
     todoPage = new TodoPage(page);
     await todoPage.goto();
+    // Clear all existing todos to ensure test isolation
+    await todoPage.clearAllTodos();
   });
 
   test('should create a new TODO item', async ({ page }) => {
